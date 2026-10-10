@@ -1,6 +1,6 @@
 [package]
 name = "greenroom"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 description = "Call any coding-agent harness onto the stage — one tiny native launcher."
 license = "MIT"

@@ -158,7 +158,11 @@ models = []
 name = "pi"
 bin = "pi"
 args = ["-p", "{prompt}", "--no-session"]
-model_args = ["--model", "{model}"]
+# A bare model id is resolved across ALL providers — if the same id exists in
+# another catalog (e.g. openrouter's), pi may pick that provider and ask for
+# its API key. Pin your provider so the id resolves where it belongs
+# ("commandcode" = the provider name in ~/.pi/agent/models.json):
+model_args = ["--provider", "commandcode", "--model", "{model}"]
 # e.g. CommandCode ids, if your pi is wired to that gateway:
 models = ["deepseek/deepseek-v4.1-flash", "deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash"]
 efforts = ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
