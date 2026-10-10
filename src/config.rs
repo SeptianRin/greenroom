@@ -6,19 +6,70 @@ use std::path::{Path, PathBuf};
 pub struct Harness {
     pub name: String,
     pub bin: String,
-    /// Argv template. `{prompt}` is replaced with the prompt (always one argv
-    /// item, never shell-interpreted). `{model}` is replaced with the selected
-    /// model when one is set; when none is set, a bare `{model}` item (and a
-    /// flag immediately before it) is dropped.
+    /// Argv template. `{prompt}` is replaced with the prompt (always exactly
+    /// one argv item, never shell-interpreted). `{model}` / `{effort}` are
+    /// replaced with the UI values when set; when a value is unset, a bare
+    /// placeholder and a flag immediately before it are dropped.
     #[serde(default)]
     pub args: Vec<String>,
-    /// Inserted right after the binary when a model is selected and `args` does
-    /// not itself use `{model}`.
+    /// Inserted right after the binary when a model is selected and `args`
+    /// does not itself use `{model}`.
     #[serde(default)]
     pub model_args: Vec<String>,
     /// Suggested model ids for the picker; free typing always allowed.
     #[serde(default)]
     pub models: Vec<String>,
+    /// Suggested reasoning-effort levels for the picker (e.g. off/low/high).
+    #[serde(default)]
+    pub efforts: Vec<String>,
+    /// Appended after model args when an effort is selected and `args` does
+    /// not itself use `{effort}`. Example: ["--thinking", "{effort}"].
+    #[serde(default)]
+    pub effort_args: Vec<String>,
+}
+
+/// Configurable keybindings. Spec syntax: `cmd+enter`, `ctrl+shift+p`,
+/// `cmd+.`, `esc`, single letters (`cmd+k`); empty string disables.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct Keys {
+    #[serde(default = "k_run")]
+    pub run: String,
+    #[serde(default = "k_cancel")]
+    pub cancel: String,
+    #[serde(default = "k_clear")]
+    pub clear: String,
+    #[serde(default = "k_reload")]
+    pub reload: String,
+    #[serde(default = "k_config")]
+    pub config: String,
+}
+
+fn k_run() -> String {
+    "cmd+enter".into()
+}
+fn k_cancel() -> String {
+    "cmd+.".into()
+}
+fn k_clear() -> String {
+    "cmd+k".into()
+}
+fn k_reload() -> String {
+    "cmd+r".into()
+}
+fn k_config() -> String {
+    "cmd+,".into()
+}
+
+impl Default for Keys {
+    fn default() -> Self {
+        Self {
+            run: k_run(),
+            cancel: k_cancel(),
+            clear: k_clear(),
+            reload: k_reload(),
+            config: k_config(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -26,6 +77,8 @@ pub struct Config {
     /// Working directory the app starts in; `~` is expanded.
     #[serde(default = "default_dir")]
     pub default_dir: String,
+    #[serde(default)]
+    pub keys: Keys,
     #[serde(default)]
     pub harness: Vec<Harness>,
 }
@@ -46,11 +99,25 @@ pub const DEFAULT_CONFIG: &str = r#"# Greenroom — configuration
 #             picked, a bare "{model}" arg — and the flag right before it — is
 #             dropped. If your CLI wants the model in a special place, put
 #             {model} directly in "args" instead of "model_args".
+#   {effort}  is replaced with the reasoning effort you pick (presets come
+#             from each harness's "efforts"; "effort_args" is appended when
+#             an effort is set). Same drop rules as {model}.
 #
 # Add, remove or reorder [[harness]] blocks freely; the app reloads this file
-# on the ↻ button (or restart). Run `which <bin>` if an agent shows as grey.
+# on the Reload button, and you can edit all of it in-app via Config.
+# Run `which <bin>` if an agent shows as greyed out.
 
 default_dir = "~"
+
+[keys]
+# Keybindings. A spec is modifiers + key: cmd/ctrl/alt/shift + one of
+# a-z, 0-9, enter, esc, tab, space, period, comma, slash, minus, arrows,
+# backspace, delete. Empty string disables that binding.
+run    = "cmd+enter"   # run the prompt
+cancel = "cmd+."       # stop the running agent
+clear  = "cmd+k"       # clear the output
+reload = "cmd+r"       # reload this config file
+config = "cmd+,"       # open the in-app config editor
 
 [[harness]]
 name = "Claude Code"
@@ -94,6 +161,8 @@ args = ["-p", "{prompt}", "--no-session"]
 model_args = ["--model", "{model}"]
 # e.g. CommandCode ids, if your pi is wired to that gateway:
 models = ["deepseek/deepseek-v4.1-flash", "deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash"]
+efforts = ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
+effort_args = ["--thinking", "{effort}"]
 
 [[harness]]
 name = "DeepSeek Harness"
@@ -107,6 +176,8 @@ bin = "cmd"
 args = ["-p", "{prompt}", "--max-turns", "1", "--no-session"]
 model_args = ["-m", "{model}"]
 models = ["deepseek/deepseek-v4.1-flash", "deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash"]
+efforts = ["low", "medium", "high"]
+effort_args = ["--effort", "{effort}"]
 
 [[harness]]
 name = "Hermes Agent"
@@ -162,9 +233,15 @@ pub fn load() -> (Config, PathBuf, Option<String>) {
     }
 }
 
+/// Serialize a config back to TOML (used by the in-app editor).
+pub fn serialize(cfg: &Config) -> Result<String, String> {
+    toml::to_string_pretty(cfg).map_err(|e| e.to_string())
+}
+
 fn fallback() -> Config {
     toml::from_str(DEFAULT_CONFIG).unwrap_or_else(|_| Config {
         default_dir: default_dir(),
+        keys: Keys::default(),
         harness: Vec::new(),
     })
 }

@@ -36,12 +36,29 @@ cargo build --release          # binary at target/release/greenroom
 
 ## Use
 
-Run it, pick an agent (grey dot = binary not found on `$PATH`), optionally type or
-pick a model, choose the working directory, write the prompt, **Run**. Output
-streams live; `Cmd+Enter` also runs; **Cancel** signals the process group.
+Run it, pick an agent (dimmed name = binary not found on `$PATH`), optionally
+type or pick a **model** and a reasoning **effort**, choose the working
+directory, write the prompt, **Run**. Output streams live, and the command
+preview under the buttons shows exactly what will be executed.
 
-The first run creates `~/.config/greenroom/config.toml`. Hit **↻ reload config**
-after editing it — no restart needed.
+The first run creates `~/.config/greenroom/config.toml`. Edit it in your own
+editor and hit **Reload** — or edit everything right inside the app: **Config**
+opens a form editor plus a raw TOML editor with **Save & Reload**. No restart
+needed either way.
+
+### Keybindings
+
+Every shortcut is configurable in the `[keys]` section of the config — write
+specs like `cmd+enter`, `cmd+.`, `esc`, `ctrl+shift+p`; an empty string disables
+that binding.
+
+| Action | Default |
+|---|---|
+| Run the prompt | `Cmd+Enter` |
+| Stop the running agent | `Cmd+.` |
+| Clear output | `Cmd+K` |
+| Reload config | `Cmd+R` |
+| Open the config editor | `Cmd+,` |
 
 ## Configure an agent
 
@@ -54,12 +71,15 @@ bin = "opencode"                              # resolved via $PATH
 args = ["run", "{prompt}"]                    # {prompt} → your prompt, one argv item
 model_args = ["--model", "{model}"]           # inserted when a model is picked
 models = ["opencode-go/deepseek-v4-flash"]    # picker presets (free typing always allowed)
+efforts = ["low", "medium", "high"]           # optional reasoning-effort presets
+effort_args = ["--effort", "{effort}"]        # …and how to pass the picked effort
 ```
 
-- `{prompt}` is substituted with your prompt; `{model}` with the picked model.
-- No model picked? A bare `{model}` — and the flag right before it — is dropped.
-- Some CLIs want the model somewhere special: put `{model}` directly into `args`
-  and the flag placement is up to you.
+- `{prompt}` is substituted with your prompt; `{model}` with the picked model;
+  `{effort}` with the picked reasoning effort.
+- No model/effort picked? A bare placeholder — and the flag right before it — is
+  dropped. Some CLIs want the value somewhere special: put `{model}` / `{effort}`
+  directly into `args` and the placement is up to you.
 - Anything with a non-interactive mode works — see the presets in your config
   and tweak flags to match your CLI version.
 
@@ -76,6 +96,10 @@ models = ["opencode-go/deepseek-v4-flash"]    # picker presets (free typing alwa
 | DeepSeek Harness | `dsh --profile headless "{prompt}"` |
 | Command Code | `cmd -p "{prompt}" --max-turns 1 --no-session` |
 | Hermes Agent | `hermes chat -q "{prompt}" --oneshot -Q` |
+
+Reasoning-effort presets ship for **pi** (`--thinking off…max`) and
+**Command Code** (`--effort low|medium|high`); add your own for any harness via
+`efforts` + `effort_args`.
 
 ## Why "Greenroom"?
 
