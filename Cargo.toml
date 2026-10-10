@@ -1,0 +1,19 @@
+[package]
+name = "greenroom"
+version = "0.1.0"
+edition = "2024"
+description = "Call any coding-agent harness onto the stage — one tiny native launcher."
+license = "MIT"
+repository = "https://github.com/SeptianRin/greenroom"
+readme = "README.md"
+
+[dependencies]
+eframe = "0.35.0"
+libc = "0.2.190"
+rfd = "0.17.2"
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.1.8"
+
+[profile.release]
+strip = true
+lto = "thin"
